@@ -370,33 +370,6 @@ def create_calculated_columns(df):
         st.error(f"❌ Error en cálculos: {str(e)}")
         return df
 
-def create_robust_state_comparison(df):
-    """
-    Crea un gráfico que compara la Ley Promedio vs Cantidad de Muestras.
-    Ayuda a identificar si un estado parece "rico" solo porque tiene pocas muestras.
-    """
-    state_stats = df.groupby('STATE').agg({
-        'AU_PPM': 'median',
-        'CU_PPM': 'median',
-        'STATE_SAMPLE_COUNT': 'first',
-        'IS_POLYMETALLIC': 'sum'
-    }).reset_index()
-
-    fig = px.scatter(
-        state_stats, 
-        x='STATE_SAMPLE_COUNT', 
-        y='CU_PPM',
-        size='AU_PPM', 
-        color='STATE',
-        hover_name='STATE',
-        log_x=True,  # Escala logarítmica para manejar la diferencia de miles vs decenas de muestras
-        title="Riqueza de Cobre vs. Densidad de Muestreo (Tamaño = Ley Au)",
-        labels={'STATE_SAMPLE_COUNT': 'Cantidad de Muestras (Log)', 'CU_PPM': 'Mediana Cu (ppm)'}
-    )
-    
-    fig.add_hline(y=df['CU_PPM'].median(), line_dash="dot", annotation_text="Mediana Global Cu")
-    return fig
-
 # ==============================================================================
 # FUNCIONES DE INTELIGENCIA ARTIFICIAL (GROQ)
 # ==============================================================================
@@ -898,175 +871,21 @@ def show_outliers_boxplot(df):
 
 
 # ==============================================================================
-# FUNCIONES AUXILIARES PARA GRÁFICOS EN PDF
-# ==============================================================================
-
-def create_top_states_chart_for_pdf(df, top_n=10):
-    """
-    Crea gráfico de top estados para incluir en PDF.
-    Retorna figura de Plotly optimizada para PDF.
-    """
-    try:
-        # Obtener top estados por total de muestras
-        top_states = df['STATE'].value_counts().head(top_n)
-        
-        # Obtener muestras polimetálicas por estado
-        poly_by_state = df[df['IS_POLYMETALLIC']].groupby('STATE').size()
-        
-        # Crear DataFrame combinado
-        chart_data = pd.DataFrame({
-            'Estado': top_states.index,
-            'Total': top_states.values,
-            'Polimetálicas': [poly_by_state.get(state, 0) for state in top_states.index]
-        })
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            y=chart_data['Estado'],
-            x=chart_data['Total'],
-            name='Total Muestras',
-            orientation='h',
-            marker=dict(color='#3498DB'),
-            text=chart_data['Total'],
-            textposition='auto'
-        ))
-        
-        fig.add_trace(go.Bar(
-            y=chart_data['Estado'],
-            x=chart_data['Polimetálicas'],
-            name='Polimetálicas',
-            orientation='h',
-            marker=dict(color='#E74C3C'),
-            text=chart_data['Polimetálicas'],
-            textposition='auto'
-        ))
-        
-        fig.update_layout(
-            title=f'Top {top_n} Estados por Número de Muestras',
-            xaxis_title='Cantidad de Muestras',
-            yaxis_title='Estado',
-            barmode='group',
-            height=400,
-            width=650,
-            showlegend=True,
-            font=dict(size=10),
-            margin=dict(l=100, r=20, t=40, b=40)
-        )
-        
-        return fig
-    except Exception as e:
-        print(f"Error creando gráfico de estados: {str(e)}")
-        return None
-
-
-def create_commodity_distribution_for_pdf(df):
-    """
-    Crea gráfico de distribución de commodities para PDF.
-    """
-    try:
-        commodity_counts = df['COMMODITY_CLASS'].value_counts()
-        
-        fig = go.Figure(data=[go.Pie(
-            labels=commodity_counts.index,
-            values=commodity_counts.values,
-            hole=0.3,
-            marker=dict(colors=['#95A5A6', '#E74C3C', '#F39C12', '#27AE60']),
-            textinfo='label+percent',
-            textfont=dict(size=10)
-        )])
-        
-        fig.update_layout(
-            title='Distribución de Muestras por Clasificación',
-            height=350,
-            width=650,
-            showlegend=True,
-            font=dict(size=10),
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        
-        return fig
-    except Exception as e:
-        print(f"Error creando gráfico de commodities: {str(e)}")
-        return None
-
-
-def create_concentration_comparison_for_pdf(df):
-    """
-    Crea gráfico comparativo de concentraciones entre polimetálicos y no polimetálicos.
-    """
-    try:
-        # Datos para polimetálicos
-        poly_data = df[df['IS_POLYMETALLIC']]
-        non_poly_data = df[~df['IS_POLYMETALLIC']]
-        
-        fig = go.Figure()
-        
-        # Boxplot Cu - Polimetálicos
-        fig.add_trace(go.Box(
-            y=poly_data['CU_PPM'],
-            name='Cu - Polimetálico',
-            marker_color='#E74C3C',
-            boxmean='sd'
-        ))
-        
-        # Boxplot Cu - No polimetálicos
-        fig.add_trace(go.Box(
-            y=non_poly_data['CU_PPM'],
-            name='Cu - No Polimetálico',
-            marker_color='#3498DB',
-            boxmean='sd'
-        ))
-        
-        # Boxplot Au - Polimetálicos
-        fig.add_trace(go.Box(
-            y=poly_data['AU_PPM'],
-            name='Au - Polimetálico',
-            marker_color='#F39C12',
-            boxmean='sd'
-        ))
-        
-        # Boxplot Au - No polimetálicos
-        fig.add_trace(go.Box(
-            y=non_poly_data['AU_PPM'],
-            name='Au - No Polimetálico',
-            marker_color='#95A5A6',
-            boxmean='sd'
-        ))
-        
-        fig.update_layout(
-            title='Comparación de Concentraciones: Polimetálicos vs No Polimetálicos',
-            yaxis_title='Concentración (ppm)',
-            height=400,
-            width=650,
-            showlegend=True,
-            font=dict(size=10),
-            margin=dict(l=50, r=20, t=40, b=40)
-        )
-        
-        return fig
-    except Exception as e:
-        print(f"Error creando gráfico de comparación: {str(e)}")
-        return None
-
-# ==============================================================================
 # GENERACIÓN DE REPORTES PDF
 # ==============================================================================
 
 def generate_pdf_report(df, insights_text=""):
     """
-    Genera un reporte PDF orientado a preguntas de negocio con gráficos incluidos.
-    Requiere: reportlab, kaleido
+    Genera un reporte PDF orientado a preguntas de negocio.
+    Requiere: reportlab
     """
     try:
-        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-        import tempfile
-        import os
         
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
@@ -1373,7 +1192,7 @@ def generate_pdf_report(df, insights_text=""):
         
     except ImportError as ie:
         st.warning(f"⚠️ Falta instalar librerías: {str(ie)}")
-        st.info("Ejecuta: pip install reportlab kaleido")
+        st.info("Ejecuta: pip install reportlab")
         return None
     except Exception as e:
         st.error(f"❌ Error al generar PDF: {str(e)}")
