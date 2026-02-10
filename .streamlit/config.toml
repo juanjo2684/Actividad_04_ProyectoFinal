@@ -1,0 +1,7 @@
+[theme]
+# Colores institucionales EAFIT
+primaryColor = "#004B85"             # Azul EAFIT (elementos principales)
+backgroundColor = "#FFFFFF"          # Fondo blanco
+secondaryBackgroundColor = "#FFB903" # Amarillo EAFIT (destacado/acento)
+textColor = "#000000"                 # Negro para texto
+font = "sans serif"
